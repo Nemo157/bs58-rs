@@ -31,49 +31,76 @@
 //!
 //!  Feature | Activation         | Effect
 //! ---------|--------------------|--------
-//!  `std`   | **on**-by-default  | Implement [`Error`](std::error::Error) for error types
-//!  `alloc` | implied by `std`   | Support encoding/decoding to [`Vec`](alloc::vec::Vec) and [`String`](alloc::string::String) as appropriate
-//!  `check` | **off**-by-default | Integrated support for [Base58Check][]
-//!
-//! [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
+#![cfg_attr(
+    feature = "std",
+    doc = "`std` | **on**-by-default | Implement [`Error`](std::error::Error) for error types"
+)]
+#![cfg_attr(
+    not(feature = "std"),
+    doc = "`std` (*inactive*) | **on**-by-default | Implement `Error` for error types"
+)]
+#![cfg_attr(
+    feature = "alloc",
+    doc = "`alloc` | implied by `std` | Support encoding/decoding to [`Vec`](alloc::vec::Vec) and [`String`](alloc::string::String) as appropriate"
+)]
+#![cfg_attr(
+    not(feature = "alloc"),
+    doc = "`alloc` (*inactive*) | implied by `std` | Support encoding/decoding to `Vec` and `String` as appropriate"
+)]
+#![cfg_attr(
+    feature = "check",
+    doc = "`check` | **off**-by-default | Integrated support for [Base58Check](https://en.bitcoin.it/wiki/Base58Check_encoding)"
+)]
+#![cfg_attr(
+    not(feature = "check"),
+    doc = "`check` (*inactive*) | **off**-by-default | Integrated support for [Base58Check](https://en.bitcoin.it/wiki/Base58Check_encoding)"
+)]
 //!
 //! # Examples
 //!
-//! ## Basic example
-//!
-//! ```rust
-//! let decoded = bs58::decode("he11owor1d").into_vec().unwrap();
-//! let encoded = bs58::encode(decoded).into_string();
-//! assert_eq!("he11owor1d", encoded);
-//! ```
-//!
-//! ## Changing the alphabet
-//!
-//! ```rust
-//! let decoded = bs58::decode("he11owor1d")
-//!     .with_alphabet(bs58::alphabet::RIPPLE)
-//!     .into_vec()
-//!     .unwrap();
-//! let encoded = bs58::encode(decoded)
-//!     .with_alphabet(bs58::alphabet::FLICKR)
-//!     .into_string();
-//! assert_eq!("4DSSNaN1SC", encoded);
-//! ```
-//!
-//! ## Decoding into an existing buffer
-//!
-//! ```rust
-//! let (mut decoded, mut encoded) = ([0xFF; 8], String::with_capacity(10));
-//! bs58::decode("he11owor1d").into(&mut decoded).unwrap();
-//! bs58::encode(decoded).into(&mut encoded);
-//! assert_eq!("he11owor1d", encoded);
-//! ```
+//! See [`decode`](decode()) and [`encode`](encode()) for examples
 
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+
+macro_rules! doc_cfg {
+    (@ ($($cfg:tt)*) [ $($done:tt)* ] [ #[/doc_cfg] $($rest:tt)* ]) => {
+        doc_cfg! { @ [
+            $($done)*
+        ] [ $($rest)* ] }
+    };
+
+    (@ [ $($done:tt)* ] [ #[doc_cfg($($cfg:tt)*)] $($rest:tt)* ]) => {
+        doc_cfg! { @ ($($cfg)*) [
+            $($done)*
+        ] [ $($rest)* ] }
+    };
+
+    (@ ($($cfg:tt)*) [ $($done:tt)* ] [ #[doc = $doc:literal] $($rest:tt)* ]) => {
+        doc_cfg! { @ ($($cfg)*) [
+            $($done)*
+            #[cfg_attr($($cfg)*, doc = $doc)]
+        ] [ $($rest)* ] }
+    };
+
+    (@ [ $($done:tt)* ] [ #[doc = $doc:literal] $($rest:tt)* ]) => {
+        doc_cfg! { @ [
+            $($done)*
+            #[doc = $doc]
+        ] [ $($rest)* ] }
+    };
+
+    (@ [ $($done:tt)* ] [ $($rest:tt)* ]) => {
+        $($done)* $($rest)*
+    };
+
+    (#[doc = $doc:literal] $($input:tt)*) => {
+        doc_cfg! { @ [ ] [ #[doc = $doc] $($input)* ] }
+    };
+}
 
 pub mod alphabet;
 pub use alphabet::Alphabet;
@@ -91,119 +118,139 @@ enum Check {
     Enabled(Option<u8>),
 }
 
-/// Setup decoder for the given string using the [default alphabet][].
-///
-/// [default alphabet]: alphabet/constant.DEFAULT.html
-///
-/// # Examples
-///
-/// ## Basic example
-///
-/// ```rust
-/// assert_eq!(
-///     vec![0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58],
-///     bs58::decode("he11owor1d").into_vec().unwrap());
-/// ```
-///
-/// ## Changing the alphabet
-///
-/// ```rust
-/// assert_eq!(
-///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
-///     bs58::decode("he11owor1d")
-///         .with_alphabet(bs58::alphabet::RIPPLE)
-///         .into_vec().unwrap());
-/// ```
-///
-/// ## Decoding into an existing buffer
-///
-/// ```rust
-/// let mut output = [0xFF; 10];
-/// assert_eq!(8, bs58::decode("he11owor1d").into(&mut output).unwrap());
-/// assert_eq!(
-///     [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58, 0xFF, 0xFF],
-///     output);
-/// ```
-///
-/// ## Errors
-///
-/// ### Invalid Character
-///
-/// ```rust
-/// assert_eq!(
-///     bs58::decode::Error::InvalidCharacter { character: 'l', index: 2 },
-///     bs58::decode("hello world").into_vec().unwrap_err());
-/// ```
-///
-/// ### Non-ASCII Character
-///
-/// ```rust
-/// assert_eq!(
-///     bs58::decode::Error::NonAsciiCharacter { index: 5 },
-///     bs58::decode("he11o🇳🇿").into_vec().unwrap_err());
-/// ```
-///
-/// ### Too Small Buffer
-///
-/// This error can only occur when reading into a provided buffer, when using
-/// `.into_vec` a vector large enough is guaranteed to be used.
-///
-/// ```rust
-/// let mut output = [0; 7];
-/// assert_eq!(
-///     bs58::decode::Error::BufferTooSmall,
-///     bs58::decode("he11owor1d").into(&mut output).unwrap_err());
-/// ```
-pub fn decode<I: AsRef<[u8]>>(input: I) -> decode::DecodeBuilder<'static, I> {
-    decode::DecodeBuilder::from_input(input)
+doc_cfg! {
+    /// Setup decoder for the given string using the [default alphabet][].
+    ///
+    /// [default alphabet]: alphabet/constant.DEFAULT.html
+    ///
+    /// # Examples
+    ///
+    #[doc_cfg(feature = "alloc")]
+    /// ## Basic example
+    ///
+    /// ```rust
+    /// assert_eq!(
+    ///     vec![0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58],
+    ///     bs58::decode("he11owor1d").into_vec().unwrap());
+    /// ```
+    ///
+    /// ## Changing the alphabet
+    ///
+    /// ```rust
+    /// assert_eq!(
+    ///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
+    ///     bs58::decode("he11owor1d")
+    ///         .with_alphabet(bs58::alphabet::RIPPLE)
+    ///         .into_vec().unwrap());
+    /// ```
+    #[/doc_cfg]
+    ///
+    /// ## Decoding into an existing buffer
+    ///
+    /// ```rust
+    /// let mut output = [0xFF; 10];
+    /// assert_eq!(8, bs58::decode("he11owor1d").into(&mut output).unwrap());
+    /// assert_eq!(
+    ///     [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58, 0xFF, 0xFF],
+    ///     output);
+    /// ```
+    ///
+    /// ## Errors
+    ///
+    /// ### Invalid Character
+    ///
+    /// ```rust
+    /// let mut output = [0xFF; 10];
+    /// assert_eq!(
+    ///     bs58::decode::Error::InvalidCharacter { character: 'l', index: 2 },
+    ///     bs58::decode("hello world").into(&mut output).unwrap_err());
+    /// ```
+    ///
+    /// ### Non-ASCII Character
+    ///
+    /// ```rust
+    /// let mut output = [0xFF; 10];
+    /// assert_eq!(
+    ///     bs58::decode::Error::NonAsciiCharacter { index: 5 },
+    ///     bs58::decode("he11o🇳🇿").into(&mut output).unwrap_err());
+    /// ```
+    ///
+    /// ### Too Small Buffer
+    ///
+    /// This error can only occur when reading into a provided buffer, when using
+    /// `.into_vec` a vector large enough is guaranteed to be used.
+    ///
+    /// ```rust
+    /// let mut output = [0; 7];
+    /// assert_eq!(
+    ///     bs58::decode::Error::BufferTooSmall,
+    ///     bs58::decode("he11owor1d").into(&mut output).unwrap_err());
+    /// ```
+    pub fn decode<I: AsRef<[u8]>>(input: I) -> decode::DecodeBuilder<'static, I> {
+        decode::DecodeBuilder::from_input(input)
+    }
 }
 
-/// Setup encoder for the given bytes using the [default alphabet][].
-///
-/// [default alphabet]: alphabet/constant.DEFAULT.html
-///
-/// # Examples
-///
-/// ## Basic example
-///
-/// ```rust
-/// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-/// assert_eq!("he11owor1d", bs58::encode(input).into_string());
-/// ```
-///
-/// ## Changing the alphabet
-///
-/// ```rust
-/// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
-/// assert_eq!(
-///     "he11owor1d",
-///     bs58::encode(input)
-///         .with_alphabet(bs58::alphabet::RIPPLE)
-///         .into_string());
-/// ```
-///
-/// ## Encoding into an existing string
-///
-/// ```rust
-/// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-/// let mut output = "goodbye world".to_owned();
-/// bs58::encode(input).into(&mut output);
-/// assert_eq!("he11owor1d", output);
-/// ```
-///
-/// ## Errors
-///
-/// ### Too Small Buffer
-///
-/// This error can only occur when reading into an unresizeable buffer.
-///
-/// ```rust
-/// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-/// let mut output = [0; 7];
-/// assert_eq!(
-///     bs58::encode::Error::BufferTooSmall,
-///     bs58::encode(input).into(&mut output[..]).unwrap_err());
-/// ```
-pub fn encode<I: AsRef<[u8]>>(input: I) -> encode::EncodeBuilder<'static, I> {
-    encode::EncodeBuilder::from_input(input)
+doc_cfg! {
+    /// Setup encoder for the given bytes using the [default alphabet][].
+    ///
+    /// [default alphabet]: alphabet/constant.DEFAULT.html
+    ///
+    /// # Examples
+    ///
+    #[doc_cfg(feature = "alloc")]
+    /// ## Basic example
+    ///
+    /// ```rust
+    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+    /// assert_eq!("he11owor1d", bs58::encode(input).into_string());
+    /// ```
+    ///
+    /// ## Changing the alphabet
+    ///
+    /// ```rust
+    /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
+    /// assert_eq!(
+    ///     "he11owor1d",
+    ///     bs58::encode(input)
+    ///         .with_alphabet(bs58::alphabet::RIPPLE)
+    ///         .into_string());
+    /// ```
+    ///
+    /// ## Encoding into an existing string
+    ///
+    /// ```rust
+    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+    /// let mut output = "goodbye world".to_owned();
+    /// bs58::encode(input).into(&mut output);
+    /// assert_eq!("he11owor1d", output);
+    /// ```
+    #[/doc_cfg]
+    ///
+    /// ## Encoding into a non-`String` source of `&mut str`
+    ///
+    /// ```rust
+    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+    /// let mut output = *b"goodbye world";
+    /// let mut output = core::str::from_utf8_mut(&mut output[..]).unwrap();
+    /// bs58::encode(input).into(&mut output);
+    /// assert_eq!("he11owor1drld", output);
+    /// ```
+    ///
+    /// ## Errors
+    ///
+    /// ### Too Small Buffer
+    ///
+    /// This error can only occur when reading into an unresizeable buffer.
+    ///
+    /// ```rust
+    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+    /// let mut output = [0; 7];
+    /// assert_eq!(
+    ///     bs58::encode::Error::BufferTooSmall,
+    ///     bs58::encode(input).into(&mut output[..]).unwrap_err());
+    /// ```
+    pub fn encode<I: AsRef<[u8]>>(input: I) -> encode::EncodeBuilder<'static, I> {
+        encode::EncodeBuilder::from_input(input)
+    }
 }

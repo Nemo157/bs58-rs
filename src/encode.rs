@@ -54,7 +54,7 @@ impl<T: EncodeTarget + ?Sized> EncodeTarget for &mut T {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl EncodeTarget for Vec<u8> {
     fn encode_with(
         &mut self,
@@ -69,7 +69,7 @@ impl EncodeTarget for Vec<u8> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl EncodeTarget for String {
     fn encode_with(
         &mut self,
@@ -155,82 +155,98 @@ impl<'a, I: AsRef<[u8]>> EncodeBuilder<'a, I> {
         }
     }
 
-    /// Change the alphabet that will be used for encoding.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
-    /// assert_eq!(
-    ///     "he11owor1d",
-    ///     bs58::encode(input)
-    ///         .with_alphabet(bs58::alphabet::RIPPLE)
-    ///         .into_string());
-    /// ```
-    pub fn with_alphabet(self, alpha: &'a [u8; 58]) -> EncodeBuilder<'a, I> {
-        let alpha = AlphabetCow::Owned(Alphabet::new(alpha));
-        EncodeBuilder { alpha, ..self }
+    doc_cfg! {
+        /// Change the alphabet that will be used for encoding.
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
+        /// assert_eq!(
+        ///     "he11owor1d",
+        ///     bs58::encode(input)
+        ///         .with_alphabet(bs58::alphabet::RIPPLE)
+        ///         .into_string());
+        /// ```
+        #[/doc_cfg]
+        pub fn with_alphabet(self, alpha: &'a [u8; 58]) -> EncodeBuilder<'a, I> {
+            let alpha = AlphabetCow::Owned(Alphabet::new(alpha));
+            EncodeBuilder { alpha, ..self }
+        }
     }
 
-    /// Change the alphabet that will be used for decoding.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
-    /// assert_eq!(
-    ///     "he11owor1d",
-    ///     bs58::encode(input)
-    ///         .with_prepared_alphabet(bs58::Alphabet::RIPPLE)
-    ///         .into_string());
-    /// ```
-    pub fn with_prepared_alphabet(self, alpha: &'a Alphabet) -> EncodeBuilder<'a, I> {
-        let alpha = AlphabetCow::Borrowed(alpha);
-        EncodeBuilder { alpha, ..self }
+    doc_cfg! {
+        /// Change the alphabet that will be used for decoding.
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
+        /// assert_eq!(
+        ///     "he11owor1d",
+        ///     bs58::encode(input)
+        ///         .with_prepared_alphabet(bs58::Alphabet::RIPPLE)
+        ///         .into_string());
+        /// ```
+        #[/doc_cfg]
+        pub fn with_prepared_alphabet(self, alpha: &'a Alphabet) -> EncodeBuilder<'a, I> {
+            let alpha = AlphabetCow::Borrowed(alpha);
+            EncodeBuilder { alpha, ..self }
+        }
     }
 
-    /// Include checksum calculated using the [Base58Check][] algorithm when
-    /// encoding.
-    ///
-    /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
-    /// assert_eq!(
-    ///     "QuT57JNzzWTu7mW",
-    ///     bs58::encode(input)
-    ///         .with_check()
-    ///         .into_string());
-    /// ```
-    #[cfg(feature = "check")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
-    pub fn with_check(self) -> EncodeBuilder<'a, I> {
-        let check = Check::Enabled(None);
-        EncodeBuilder { check, ..self }
+    doc_cfg! {
+        /// Include checksum calculated using the [Base58Check][] algorithm when
+        /// encoding.
+        ///
+        /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
+        /// assert_eq!(
+        ///     "QuT57JNzzWTu7mW",
+        ///     bs58::encode(input)
+        ///         .with_check()
+        ///         .into_string());
+        /// ```
+        #[/doc_cfg]
+        #[cfg(feature = "check")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
+        pub fn with_check(self) -> EncodeBuilder<'a, I> {
+            let check = Check::Enabled(None);
+            EncodeBuilder { check, ..self }
+        }
     }
 
-    /// Include checksum calculated using the [Base58Check][] algorithm and
-    /// version when encoding.
-    ///
-    /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
-    /// assert_eq!(
-    ///     "oP8aA4HEEyFxxYhp",
-    ///     bs58::encode(input)
-    ///         .with_check_version(42)
-    ///         .into_string());
-    /// ```
-    #[cfg(feature = "check")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
-    pub fn with_check_version(self, expected_ver: u8) -> EncodeBuilder<'a, I> {
-        let check = Check::Enabled(Some(expected_ver));
-        EncodeBuilder { check, ..self }
+    doc_cfg! {
+        /// Include checksum calculated using the [Base58Check][] algorithm and
+        /// version when encoding.
+        ///
+        /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// let input = [0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78];
+        /// assert_eq!(
+        ///     "oP8aA4HEEyFxxYhp",
+        ///     bs58::encode(input)
+        ///         .with_check_version(42)
+        ///         .into_string());
+        /// ```
+        #[/doc_cfg]
+        #[cfg(feature = "check")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
+        pub fn with_check_version(self, expected_ver: u8) -> EncodeBuilder<'a, I> {
+            let check = Check::Enabled(Some(expected_ver));
+            EncodeBuilder { check, ..self }
+        }
     }
 
     /// Encode into a new owned string.
@@ -242,7 +258,7 @@ impl<'a, I: AsRef<[u8]>> EncodeBuilder<'a, I> {
     /// assert_eq!("he11owor1d", bs58::encode(input).into_string());
     /// ```
     #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn into_string(self) -> String {
         let mut output = String::new();
         self.into(&mut output).unwrap();
@@ -258,87 +274,94 @@ impl<'a, I: AsRef<[u8]>> EncodeBuilder<'a, I> {
     /// assert_eq!(b"he11owor1d", &*bs58::encode(input).into_vec());
     /// ```
     #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn into_vec(self) -> Vec<u8> {
         let mut output = Vec::new();
         self.into(&mut output).unwrap();
         output
     }
 
-    /// Encode into the given buffer.
-    ///
-    /// Returns the length written into the buffer.
-    ///
-    /// If the buffer is resizeable it will be reallocated to fit the encoded data and truncated to
-    /// size.
-    ///
-    /// If the buffer is not resizeable bytes after the final character will be left alone, except
-    /// up to 3 null bytes may be written to an `&mut str` to overwrite remaining characters of a
-    /// partially overwritten multi-byte character.
-    ///
-    /// See the documentation for [`bs58::encode`](../fn.encode.html) for an
-    /// explanation of the errors that may occur.
-    ///
-    /// # Examples
-    ///
-    /// ## `Vec<u8>`
-    ///
-    /// ```rust
-    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-    /// let mut output = "goodbye world".to_owned().into_bytes();
-    /// bs58::encode(input).into(&mut output);
-    /// assert_eq!(b"he11owor1d", &*output);
-    /// ```
-    ///
-    /// ## `&mut [u8]`
-    ///
-    /// ```rust
-    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-    /// let mut output = Vec::from("goodbye world");
-    /// bs58::encode(input).into(&mut output[..]);
-    /// assert_eq!(b"he11owor1drld", &*output);
-    /// ```
-    ///
-    /// ## `String`
-    ///
-    /// ```rust
-    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-    /// let mut output = "goodbye world".to_owned();
-    /// bs58::encode(input).into(&mut output);
-    /// assert_eq!("he11owor1d", output);
-    /// ```
-    ///
-    /// ## `&mut str`
-    ///
-    /// ```rust
-    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-    /// let mut output = "goodbye world".to_owned();
-    /// bs58::encode(input).into(output.as_mut_str());
-    /// assert_eq!("he11owor1drld", output);
-    /// ```
-    ///
-    /// ### Clearing partially overwritten characters
-    ///
-    /// ```rust
-    /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
-    /// let mut output = "goodbye w®ld".to_owned();
-    /// bs58::encode(input).into(output.as_mut_str());
-    /// assert_eq!("he11owor1d\0ld", output);
-    /// ```
-    pub fn into(self, mut output: impl EncodeTarget) -> Result<usize> {
-        match self.check {
-            Check::Disabled => {
-                let max_encoded_len = (self.input.as_ref().len() / 5 + 1) * 8;
-                output.encode_with(max_encoded_len, |output| {
-                    encode_into(self.input.as_ref(), output, &self.alpha)
-                })
-            }
-            #[cfg(feature = "check")]
-            Check::Enabled(version) => {
-                let max_encoded_len = ((self.input.as_ref().len() + CHECKSUM_LEN) / 5 + 1) * 8;
-                output.encode_with(max_encoded_len, |output| {
-                    encode_check_into(self.input.as_ref(), output, &self.alpha, version)
-                })
+    doc_cfg! {
+        /// Encode into the given buffer.
+        ///
+        /// Returns the length written into the buffer.
+        ///
+        /// If the buffer is resizeable it will be reallocated to fit the encoded data and truncated to
+        /// size.
+        ///
+        /// If the buffer is not resizeable bytes after the final character will be left alone, except
+        /// up to 3 null bytes may be written to an `&mut str` to overwrite remaining characters of a
+        /// partially overwritten multi-byte character.
+        ///
+        /// See the documentation for [`bs58::encode`](../fn.encode.html) for an
+        /// explanation of the errors that may occur.
+        ///
+        /// # Examples
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// ## `Vec<u8>`
+        ///
+        /// ```rust
+        /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+        /// let mut output = "goodbye world".to_owned().into_bytes();
+        /// bs58::encode(input).into(&mut output);
+        /// assert_eq!(b"he11owor1d", &*output);
+        /// ```
+        ///
+        /// ## `String`
+        ///
+        /// ```rust
+        /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+        /// let mut output = "goodbye world".to_owned();
+        /// bs58::encode(input).into(&mut output);
+        /// assert_eq!("he11owor1d", output);
+        /// ```
+        #[/doc_cfg]
+        ///
+        /// ## `&mut [u8]`
+        ///
+        /// ```rust
+        /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+        /// let mut output = Vec::from("goodbye world");
+        /// bs58::encode(input).into(&mut output[..]);
+        /// assert_eq!(b"he11owor1drld", &*output);
+        /// ```
+        ///
+        /// ## `&mut str`
+        ///
+        /// ```rust
+        /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+        /// let mut output = *b"goodbye world";
+        /// let mut output = core::str::from_utf8_mut(&mut output[..]).unwrap();
+        /// bs58::encode(input).into(&mut output);
+        /// assert_eq!("he11owor1drld", output);
+        /// ```
+        ///
+        /// ### Clearing partially overwritten characters
+        ///
+        /// ```rust
+        /// let input = [0x04, 0x30, 0x5e, 0x2b, 0x24, 0x73, 0xf0, 0x58];
+        /// let mut output = [0; 13];
+        /// output.copy_from_slice("goodbye w®ld".as_bytes());
+        /// let mut output = core::str::from_utf8_mut(&mut output[..]).unwrap();
+        /// bs58::encode(input).into(&mut output);
+        /// assert_eq!("he11owor1d\0ld", output);
+        /// ```
+        pub fn into(self, mut output: impl EncodeTarget) -> Result<usize> {
+            match self.check {
+                Check::Disabled => {
+                    let max_encoded_len = (self.input.as_ref().len() / 5 + 1) * 8;
+                    output.encode_with(max_encoded_len, |output| {
+                        encode_into(self.input.as_ref(), output, &self.alpha)
+                    })
+                }
+                #[cfg(feature = "check")]
+                Check::Enabled(version) => {
+                    let max_encoded_len = ((self.input.as_ref().len() + CHECKSUM_LEN) / 5 + 1) * 8;
+                    output.encode_with(max_encoded_len, |output| {
+                        encode_check_into(self.input.as_ref(), output, &self.alpha, version)
+                    })
+                }
             }
         }
     }

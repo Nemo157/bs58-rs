@@ -1,11 +1,23 @@
 mod cases;
 
-#[cfg(feature = "check")]
-use assert_matches::assert_matches;
+use cases::TEST_CASES;
+
+const FILLER: [u8; 512] = [b'~'; 512];
 
 #[test]
-fn test_decode() {
-    for &(val, s) in cases::TEST_CASES.iter() {
+fn test_decode_to_slice() {
+    for &(val, s) in TEST_CASES {
+        let mut bytes = FILLER;
+        assert_eq!(Ok(val.len()), bs58::decode(s).into(&mut bytes[..]));
+        assert_eq!(val, &bytes[..val.len()]);
+        assert_eq!(&FILLER[val.len()..], &bytes[val.len()..]);
+    }
+}
+
+#[test]
+#[cfg(feature = "alloc")]
+fn test_decode_to_vec() {
+    for &(val, s) in TEST_CASES {
         assert_eq!(val.to_vec(), bs58::decode(s).into_vec().unwrap());
     }
 }
@@ -22,8 +34,9 @@ fn test_decode_small_buffer_err() {
 #[test]
 fn test_decode_invalid_char() {
     let sample = "123456789abcd!efghij";
+    let mut output = [0; 32];
     assert_eq!(
-        bs58::decode(sample).into_vec().unwrap_err(),
+        bs58::decode(sample).into(&mut output).unwrap_err(),
         bs58::decode::Error::InvalidCharacter {
             character: '!',
             index: 13
@@ -31,31 +44,71 @@ fn test_decode_invalid_char() {
     );
 }
 
-#[test]
 #[cfg(feature = "check")]
-fn test_decode_check() {
-    for &(val, s) in cases::CHECK_TEST_CASES.iter() {
-        assert_eq!(
-            val.to_vec(),
-            bs58::decode(s).with_check(None).into_vec().unwrap()
-        );
+mod check {
+    use super::{cases::CHECK_TEST_CASES, FILLER};
+
+    #[test]
+    fn test_decode_without_check_to_slice() {
+        for &(val, s) in CHECK_TEST_CASES {
+            let mut bytes = FILLER;
+            assert_eq!(
+                Ok(val.len()),
+                bs58::decode(s).with_check(None).into(&mut bytes[..])
+            );
+            assert_eq!(val, &bytes[..val.len()]);
+            assert_eq!(&FILLER[val.len() + 4..], &bytes[val.len() + 4..]);
+        }
     }
 
-    for &(val, s) in cases::CHECK_TEST_CASES[1..].iter() {
+    #[test]
+    fn test_decode_with_check_to_slice() {
+        for &(val, s) in &CHECK_TEST_CASES[1..] {
+            let mut bytes = FILLER;
+            assert_eq!(
+                Ok(val.len()),
+                bs58::decode(s)
+                    .with_check(Some(val[0]))
+                    .into(&mut bytes[..])
+            );
+            assert_eq!(val, &bytes[..val.len()]);
+            assert_eq!(&FILLER[val.len() + 4..], &bytes[val.len() + 4..]);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_decode_without_check_to_vec() {
+        for &(val, s) in CHECK_TEST_CASES {
+            assert_eq!(
+                val.to_vec(),
+                bs58::decode(s).with_check(None).into_vec().unwrap()
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_decode_with_check_to_vec() {
+        for &(val, s) in &CHECK_TEST_CASES[1..] {
+            assert_eq!(
+                val.to_vec(),
+                bs58::decode(s).with_check(Some(val[0])).into_vec().unwrap()
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_check_ver_failed() {
         assert_eq!(
-            val.to_vec(),
-            bs58::decode(s).with_check(Some(val[0])).into_vec().unwrap()
+            Err(bs58::decode::Error::InvalidVersion {
+                ver: 49,
+                expected_ver: 1,
+            }),
+            bs58::decode("K5zqBMZZTzUbAZQgrt4")
+                .with_check(Some(1))
+                .into_vec()
         );
     }
-}
-
-#[test]
-#[cfg(feature = "check")]
-fn test_check_ver_failed() {
-    let d = bs58::decode("K5zqBMZZTzUbAZQgrt4")
-        .with_check(Some(0x01))
-        .into_vec();
-
-    assert!(d.is_err());
-    assert_matches!(d.unwrap_err(), bs58::decode::Error::InvalidVersion { .. });
 }

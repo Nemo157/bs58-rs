@@ -96,60 +96,72 @@ impl<'a, I: AsRef<[u8]>> DecodeBuilder<'a, I> {
         }
     }
 
-    /// Change the alphabet that will be used for decoding.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// assert_eq!(
-    ///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
-    ///     bs58::decode("he11owor1d")
-    ///         .with_alphabet(bs58::alphabet::RIPPLE)
-    ///         .into_vec().unwrap());
-    /// ```
-    pub fn with_alphabet(self, alpha: &'a [u8; 58]) -> DecodeBuilder<'a, I> {
-        let alpha = AlphabetCow::Owned(Alphabet::new(alpha));
-        DecodeBuilder { alpha, ..self }
+    doc_cfg! {
+        /// Change the alphabet that will be used for decoding.
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// assert_eq!(
+        ///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
+        ///     bs58::decode("he11owor1d")
+        ///         .with_alphabet(bs58::alphabet::RIPPLE)
+        ///         .into_vec().unwrap());
+        /// ```
+        #[/doc_cfg]
+        pub fn with_alphabet(self, alpha: &'a [u8; 58]) -> DecodeBuilder<'a, I> {
+            let alpha = AlphabetCow::Owned(Alphabet::new(alpha));
+            DecodeBuilder { alpha, ..self }
+        }
     }
 
-    /// Change the alphabet that will be used for decoding.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// assert_eq!(
-    ///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
-    ///     bs58::decode("he11owor1d")
-    ///         .with_prepared_alphabet(bs58::Alphabet::RIPPLE)
-    ///         .into_vec().unwrap());
-    /// ```
-    pub fn with_prepared_alphabet(self, alpha: &'a Alphabet) -> DecodeBuilder<'a, I> {
-        let alpha = AlphabetCow::Borrowed(alpha);
-        DecodeBuilder { alpha, ..self }
+    doc_cfg! {
+        /// Change the alphabet that will be used for decoding.
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// assert_eq!(
+        ///     vec![0x60, 0x65, 0xe7, 0x9b, 0xba, 0x2f, 0x78],
+        ///     bs58::decode("he11owor1d")
+        ///         .with_prepared_alphabet(bs58::Alphabet::RIPPLE)
+        ///         .into_vec().unwrap());
+        /// ```
+        #[/doc_cfg]
+        pub fn with_prepared_alphabet(self, alpha: &'a Alphabet) -> DecodeBuilder<'a, I> {
+            let alpha = AlphabetCow::Borrowed(alpha);
+            DecodeBuilder { alpha, ..self }
+        }
     }
 
-    /// Expect and check checksum using the [Base58Check][] algorithm when
-    /// decoding.
-    ///
-    /// Optional parameter for version byte. If provided, the version byte will
-    /// be used in verification.
-    ///
-    /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// assert_eq!(
-    ///     vec![0x2d, 0x31],
-    ///     bs58::decode("PWEu9GGN")
-    ///         .with_check(None)
-    ///         .into_vec().unwrap());
-    /// ```
-    #[cfg(feature = "check")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
-    pub fn with_check(self, expected_ver: Option<u8>) -> DecodeBuilder<'a, I> {
-        let check = Check::Enabled(expected_ver);
-        DecodeBuilder { check, ..self }
+    doc_cfg! {
+        /// Expect and check checksum using the [Base58Check][] algorithm when
+        /// decoding.
+        ///
+        /// Optional parameter for version byte. If provided, the version byte will
+        /// be used in verification.
+        ///
+        /// [Base58Check]: https://en.bitcoin.it/wiki/Base58Check_encoding
+        ///
+        #[doc_cfg(feature = "alloc")]
+        /// # Examples
+        ///
+        /// ```rust
+        /// assert_eq!(
+        ///     vec![0x2d, 0x31],
+        ///     bs58::decode("PWEu9GGN")
+        ///         .with_check(None)
+        ///         .into_vec().unwrap());
+        /// ```
+        #[/doc_cfg]
+        #[cfg(feature = "check")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "check")))]
+        pub fn with_check(self, expected_ver: Option<u8>) -> DecodeBuilder<'a, I> {
+            let check = Check::Enabled(expected_ver);
+            DecodeBuilder { check, ..self }
+        }
     }
 
     /// Decode into a new vector of bytes.
@@ -166,7 +178,7 @@ impl<'a, I: AsRef<[u8]>> DecodeBuilder<'a, I> {
     /// ```
     ///
     #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn into_vec(self) -> Result<Vec<u8>> {
         let mut output = vec![0; self.input.as_ref().len()];
         self.into(&mut output).map(|len| {
