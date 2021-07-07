@@ -30,9 +30,14 @@ pub enum Error {
     BufferTooSmall,
 }
 
+mod sealed {
+    pub trait Sealed {}
+    impl<T: Sealed + ?Sized> Sealed for &mut T {}
+}
+
 /// Represents a buffer that can be encoded into. See [`EncodeBuilder::into`] and the provided
 /// implementations for more details.
-pub trait EncodeTarget {
+pub trait EncodeTarget: sealed::Sealed {
     /// Encodes into this buffer, provides the maximum length for implementations that wish to
     /// preallocate space, along with a function that will encode ASCII bytes into the buffer and
     /// return the length written to it.
@@ -54,6 +59,9 @@ impl<T: EncodeTarget + ?Sized> EncodeTarget for &mut T {
 }
 
 #[cfg(feature = "alloc")]
+impl sealed::Sealed for Vec<u8> {}
+
+#[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
 impl EncodeTarget for Vec<u8> {
     fn encode_with(
@@ -70,6 +78,9 @@ impl EncodeTarget for Vec<u8> {
 }
 
 #[cfg(feature = "alloc")]
+impl sealed::Sealed for String {}
+
+#[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
 impl EncodeTarget for String {
     fn encode_with(
@@ -84,6 +95,8 @@ impl EncodeTarget for String {
     }
 }
 
+impl sealed::Sealed for [u8] {}
+
 impl EncodeTarget for [u8] {
     fn encode_with(
         &mut self,
@@ -94,6 +107,8 @@ impl EncodeTarget for [u8] {
         f(&mut *self)
     }
 }
+
+impl sealed::Sealed for str {}
 
 impl EncodeTarget for str {
     fn encode_with(

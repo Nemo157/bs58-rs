@@ -75,9 +75,14 @@ pub enum Error {
     NoChecksum,
 }
 
+mod sealed {
+    pub trait Sealed {}
+    impl<T: Sealed + ?Sized> Sealed for &mut T {}
+}
+
 /// Represents a buffer that can be decoded into. See [`DecodeBuilder::into`] and the provided
 /// implementations for more details.
-pub trait DecodeTarget {
+pub trait DecodeTarget: sealed::Sealed {
     /// Decodes into this buffer, provides the maximum length for implementations that wish to
     /// preallocate space, along with a function that will write bytes into the buffer and return
     /// the length written to it.
@@ -99,6 +104,9 @@ impl<T: DecodeTarget + ?Sized> DecodeTarget for &mut T {
 }
 
 #[cfg(feature = "alloc")]
+impl sealed::Sealed for Vec<u8> {}
+
+#[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
 impl DecodeTarget for Vec<u8> {
     fn decode_with(
@@ -114,6 +122,8 @@ impl DecodeTarget for Vec<u8> {
     }
 }
 
+impl sealed::Sealed for [u8] {}
+
 impl DecodeTarget for [u8] {
     fn decode_with(
         &mut self,
@@ -124,6 +134,8 @@ impl DecodeTarget for [u8] {
         f(&mut *self)
     }
 }
+
+impl<const N: usize> sealed::Sealed for [u8; N] {}
 
 impl<const N: usize> DecodeTarget for [u8; N] {
     fn decode_with(
